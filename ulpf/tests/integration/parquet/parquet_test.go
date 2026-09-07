@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,7 +18,7 @@ func TestParquetArchiveAndRetrieve(t *testing.T) {
 
 	cfg := parquet.Config{
 		Path:          dir,
-		EventsPerFile: 1000, // Large enough that all events go in one file per source
+		EventsPerFile: 1000,
 	}
 
 	a, err := parquet.New(cfg)
@@ -25,7 +26,6 @@ func TestParquetArchiveAndRetrieve(t *testing.T) {
 		t.Fatalf("failed to create archive: %v", err)
 	}
 
-	// Archive some events
 	events := []parquet.RawEvent{
 		{
 			RawEventID:  "01HXYZ",
@@ -51,19 +51,16 @@ func TestParquetArchiveAndRetrieve(t *testing.T) {
 		}
 	}
 
-	// Close to flush parquet footer
 	if err := a.Close(); err != nil {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Reopen for reading
 	a2, err := parquet.New(cfg)
 	if err != nil {
 		t.Fatalf("failed to reopen archive: %v", err)
 	}
 	defer a2.Close()
 
-	// Retrieve by ID
 	for _, e := range events {
 		retrieved, err := a2.Retrieve(e.RawEventID)
 		if err != nil {
@@ -108,7 +105,7 @@ func TestParquetByteForBytePreservation(t *testing.T) {
 
 	for i, input := range testInputs {
 		e := parquet.RawEvent{
-			RawEventID:  hex.EncodeToString([]byte{byte(i)}),
+			RawEventID:  fmt.Sprintf("evt-%03d", i),
 			SourceID:    "test",
 			ReceivedAt:  time.Now(),
 			Payload:     input,
@@ -125,7 +122,6 @@ func TestParquetByteForBytePreservation(t *testing.T) {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Reopen
 	a2, err := parquet.New(cfg)
 	if err != nil {
 		t.Fatalf("failed to reopen archive: %v", err)
@@ -133,10 +129,10 @@ func TestParquetByteForBytePreservation(t *testing.T) {
 	defer a2.Close()
 
 	for i, input := range testInputs {
-		id := hex.EncodeToString([]byte{byte(i)})
+		id := fmt.Sprintf("evt-%03d", i)
 		retrieved, err := a2.Retrieve(id)
 		if err != nil {
-			t.Fatalf("retrieve failed: %v", err)
+			t.Fatalf("retrieve failed for %s: %v", id, err)
 		}
 
 		if !bytes.Equal(retrieved.Payload, input) {
@@ -158,11 +154,10 @@ func TestParquetPartitioning(t *testing.T) {
 		t.Fatalf("failed to create archive: %v", err)
 	}
 
-	// Archive events from different sources
 	sources := []string{"firewall", "linux", "web", "database"}
 	for i, source := range sources {
 		e := parquet.RawEvent{
-			RawEventID:  hex.EncodeToString([]byte{byte(i)}),
+			RawEventID:  fmt.Sprintf("src-%s-%d", source, i),
 			SourceID:    source,
 			ReceivedAt:  time.Now(),
 			Payload:     []byte("event from " + source),
@@ -179,7 +174,6 @@ func TestParquetPartitioning(t *testing.T) {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Check that partition directories exist
 	for _, source := range sources {
 		sourceDir := filepath.Join(dir, "source_id="+source)
 		if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
@@ -201,7 +195,6 @@ func TestParquetImmutability(t *testing.T) {
 		t.Fatalf("failed to create archive: %v", err)
 	}
 
-	// Archive an event
 	e := parquet.RawEvent{
 		RawEventID:  "test-001",
 		SourceID:    "test",
@@ -219,14 +212,12 @@ func TestParquetImmutability(t *testing.T) {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Reopen
 	a2, err := parquet.New(cfg)
 	if err != nil {
 		t.Fatalf("failed to reopen archive: %v", err)
 	}
 	defer a2.Close()
 
-	// Retrieve and verify
 	retrieved, err := a2.Retrieve("test-001")
 	if err != nil {
 		t.Fatalf("retrieve failed: %v", err)
@@ -236,7 +227,6 @@ func TestParquetImmutability(t *testing.T) {
 		t.Error("payload was modified")
 	}
 
-	// Hash should match
 	expectedHash := hashBytes([]byte("original payload"))
 	if retrieved.PayloadHash != expectedHash {
 		t.Error("hash mismatch")
@@ -248,7 +238,7 @@ func TestParquetLargeVolume(t *testing.T) {
 
 	cfg := parquet.Config{
 		Path:          dir,
-		EventsPerFile: 500, // Rotate every 500 events
+		EventsPerFile: 500,
 	}
 
 	a, err := parquet.New(cfg)
@@ -256,11 +246,10 @@ func TestParquetLargeVolume(t *testing.T) {
 		t.Fatalf("failed to create archive: %v", err)
 	}
 
-	// Archive 1000 events
 	for i := 0; i < 1000; i++ {
-		payload := []byte("event payload " + string(rune(i%256)))
+		payload := []byte(fmt.Sprintf("event payload %d", i))
 		e := parquet.RawEvent{
-			RawEventID:  hex.EncodeToString([]byte{byte(i / 256), byte(i % 256)}),
+			RawEventID:  fmt.Sprintf("evt-%04d", i),
 			SourceID:    "test",
 			ReceivedAt:  time.Now(),
 			Payload:     payload,
@@ -277,7 +266,6 @@ func TestParquetLargeVolume(t *testing.T) {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Verify count (reopen)
 	a2, err := parquet.New(cfg)
 	if err != nil {
 		t.Fatalf("failed to reopen archive: %v", err)
@@ -308,13 +296,11 @@ func TestParquetEmptyArchive(t *testing.T) {
 	}
 	defer a.Close()
 
-	// Retrieve from empty archive should return error
 	_, err = a.Retrieve("nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent event")
 	}
 
-	// Count should be 0
 	count, err := a.Count()
 	if err != nil {
 		t.Fatalf("count failed: %v", err)
@@ -338,7 +324,6 @@ func TestParquetHashVerification(t *testing.T) {
 		t.Fatalf("failed to create archive: %v", err)
 	}
 
-	// Archive with correct hash
 	payload := []byte("test payload")
 	e := parquet.RawEvent{
 		RawEventID:  "hash-test",
@@ -357,14 +342,12 @@ func TestParquetHashVerification(t *testing.T) {
 		t.Fatalf("close failed: %v", err)
 	}
 
-	// Reopen
 	a2, err := parquet.New(cfg)
 	if err != nil {
 		t.Fatalf("failed to reopen archive: %v", err)
 	}
 	defer a2.Close()
 
-	// Retrieve and verify hash
 	retrieved, err := a2.Retrieve("hash-test")
 	if err != nil {
 		t.Fatalf("retrieve failed: %v", err)
@@ -373,6 +356,54 @@ func TestParquetHashVerification(t *testing.T) {
 	computedHash := hashBytes(retrieved.Payload)
 	if computedHash != retrieved.PayloadHash {
 		t.Error("hash verification failed")
+	}
+}
+
+func TestParquetQueryBySource(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg := parquet.Config{
+		Path:          dir,
+		EventsPerFile: 1000,
+	}
+
+	a, err := parquet.New(cfg)
+	if err != nil {
+		t.Fatalf("failed to create archive: %v", err)
+	}
+
+	for i := 0; i < 10; i++ {
+		e := parquet.RawEvent{
+			RawEventID:  fmt.Sprintf("fw-%03d", i),
+			SourceID:    "firewall",
+			ReceivedAt:  time.Now(),
+			Payload:     []byte("firewall event"),
+			PayloadHash: hashBytes([]byte("firewall event")),
+			Sequence:    int64(i),
+		}
+
+		if err := a.Archive(e); err != nil {
+			t.Fatalf("archive failed: %v", err)
+		}
+	}
+
+	if err := a.Close(); err != nil {
+		t.Fatalf("close failed: %v", err)
+	}
+
+	a2, err := parquet.New(cfg)
+	if err != nil {
+		t.Fatalf("failed to reopen archive: %v", err)
+	}
+	defer a2.Close()
+
+	events, err := a2.QueryBySource("firewall")
+	if err != nil {
+		t.Fatalf("query failed: %v", err)
+	}
+
+	if len(events) != 10 {
+		t.Errorf("expected 10 events, got %d", len(events))
 	}
 }
 
