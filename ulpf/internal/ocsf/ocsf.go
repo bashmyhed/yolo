@@ -24,48 +24,48 @@ type Mapping struct {
 
 // Event is an OCSF event
 type Event struct {
-	SchemaVersion string
-	Class         string
-	TypeUid       string
-	Time          time.Time
-	Severity      string
-	ActivityID    string
-	SrcEndpoint   Endpoint
-	DstEndpoint   Endpoint
-	Process       Process
-	User          User
-	Metadata      Metadata
-	Unmapped      map[string]string
+	SchemaVersion string    `json:"schema_version"`
+	Class         string    `json:"class"`
+	TypeUid       string    `json:"type_uid"`
+	Time          time.Time `json:"time"`
+	Severity      string    `json:"severity"`
+	ActivityID    string    `json:"activity_id"`
+	SrcEndpoint   Endpoint  `json:"src_endpoint"`
+	DstEndpoint   Endpoint  `json:"dst_endpoint"`
+	Process       Process   `json:"process"`
+	User          User      `json:"user"`
+	Metadata      Metadata  `json:"metadata"`
+	Unmapped      map[string]string `json:"unmapped"`
 }
 
 // Endpoint represents a network endpoint
 type Endpoint struct {
-	IP   string
-	Port int
+	IP   string `json:"ip"`
+	Port int    `json:"port"`
 }
 
 // Process represents a process
 type Process struct {
-	Name    string
-	PID     int
-	CmdLine string
+	Name    string `json:"name"`
+	PID     int    `json:"pid"`
+	CmdLine string `json:"cmdline"`
 }
 
 // User represents a user
 type User struct {
-	Name string
-	UID  int
+	Name string `json:"name"`
+	UID  int    `json:"uid"`
 }
 
 // Metadata is OCSF metadata
 type Metadata struct {
-	Product Product
-	Version string
+	Product Product `json:"product"`
+	Version string `json:"version"`
 }
 
 // Product is OCSF product metadata
 type Product struct {
-	Name string
+	Name string `json:"name"`
 }
 
 // Mapper maps parsed events to OCSF events
