@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  ulpf:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ulpf
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+      - "5514:5514/tcp"
+      - "5514:5514/udp"
+    volumes:
+      - ./data:/data
+      - ./configs:/configs
+    environment:
+      - ULPF_CONFIG=/configs/ulpf.yaml
+    depends_on:
+      - clickhouse
+      - minio
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: ulpf-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_DB=ulpf
+      - CLICKHOUSE_USER=ulpf
+      - CLICKHOUSE_PASSWORD=ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: ulpf-minio
+    ports:
+      - "9001:9001"
+      - "9002:9002"
+    volumes:
+      - minio-data:/data
+    environment:
+      - MINIO_ROOT_USER=ulpf
+      - MINIO_ROOT_PASSWORD=ulpf12345
+    command: server /data --console-address ":9001"
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  # Dummy log generators
+  dummy-firewall:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: dummy-firewall
+    environment:
+      - GENERATOR_TYPE=firewall
+      - GENERATOR_RATE=10
+      - ULPF_HOST=ulpf
+      - ULPF_PORT=5514
+    depends_on:
+      - ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  dummy-linux:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: dummy-linux
+    environment:
+      - GENERATOR_TYPE=linux
+      - GENERATOR_RATE=5
+      - ULPF_HOST=ulpf
+      - ULPF_PORT=5514
+    depends_on:
+      - ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  dummy-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: dummy-web
+    environment:
+      - GENERATOR_TYPE=web
+      - GENERATOR_RATE=20
+      - ULPF_HOST=ulpf
+      - ULPF_PORT=5514
+    depends_on:
+      - ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  dummy-database:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: dummy-database
+    environment:
+      - GENERATOR_TYPE=database
+      - GENERATOR_RATE=3
+      - ULPF_HOST=ulpf
+      - ULPF_PORT=5514
+    depends_on:
+      - ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+  dummy-ids:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: dummy-ids
+    environment:
+      - GENERATOR_TYPE=ids
+      - GENERATOR_RATE=2
+      - ULPF_HOST=ulpf
+      - ULPF_PORT=5514
+    depends_on:
+      - ulpf
+    networks:
+      - ulpf-net
+    restart: unless-stopped
+
+volumes:
+  clickhouse-data:
+  minio-data:
+
+networks:
+  ulpf-net:
+    driver: bridge

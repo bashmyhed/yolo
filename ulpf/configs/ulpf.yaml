@@ -1,0 +1,22 @@
+network:
+  tcp_listen: "0.0.0.0:5514"
+  metrics_listen: "0.0.0.0:9090"
+
+spool:
+  path: "/data/spool"
+  max_bytes: 1073741824  # 1GB
+  segment_size: 67108864  # 64MB
+
+sinks:
+  jsonl:
+    enabled: true
+    path: "/data/output/events.jsonl"
+  syslog:
+    enabled: false
+    host: "localhost"
+    port: 514
+  clickhouse:
+    enabled: true
+    host: "clickhouse"
+    port: 9000
+    database: "ulpf"
