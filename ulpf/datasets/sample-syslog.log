@@ -1,0 +1,5 @@
+<134>Oct 11 22:14:15 server01 sshd: Accepted publickey for admin from 192.168.1.100 port 22
+<134>Oct 11 22:14:16 server01 sshd: Failed password for invalid user root from 10.0.0.1 port 22
+<134>Oct 11 22:14:17 server01 sudo: admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/ls
+<134>Oct 11 22:14:18 server01 kernel: [12345.678] IN=eth0 OUT=eth1 SRC=10.0.0.1 DST=8.8.8.8 SPT=12345 DPT=80
+<134>Oct 11 22:14:19 server01 dhcpd: DHCPACK on 192.168.1.100 to 00:11:22:33:44:55 via eth0
